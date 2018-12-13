@@ -1,0 +1,108 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  VPC:
+    Type: AWS::EC2::VPC::Id
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id>
+  ImageId:
+    Type: String
+    Default: ami-03b3182648d0d0bfb
+  InstanceType:
+    Type: String
+    Default: t2.micro
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+  VpcCidr:
+    Type: String
+    Default: 10.250.0.0/16
+  MyIP:
+    Type: String
+Resources:
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Instance security group
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '80'
+        ToPort: '80'
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: '3389'
+        ToPort: '3389'
+        CidrIp: !Join [ '', [ !Ref MyIP, '/32' ] ]
+      - IpProtocol: '-1'
+        CidrIp: !Ref VpcCidr
+  WebServerGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: !Ref Subnets
+      LaunchConfigurationName: !Ref LaunchConfig
+      MinSize: 1
+      MaxSize: 1
+      DesiredCapacity: 1
+      HealthCheckType: EC2
+      Tags:
+      - Key: Name
+        Value: 'CodeDeployInstance'
+        PropagateAtLaunch: 'true'
+  InstanceProfile: 
+    Type: "AWS::IAM::InstanceProfile"
+    Properties: 
+      Path: "/"
+      Roles: 
+        - !Ref InstanceRole
+  InstanceRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-InstanceRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM"
+  EC2Policy:
+    Type: "AWS::IAM::Policy"
+    Properties: 
+      PolicyName: !Sub ${AWS::StackName}-EC2Policy
+      PolicyDocument: 
+        Version: '2012-10-17'
+        Statement:
+        - Action:
+          - s3:Get*
+          - s3:List*
+          Effect: Allow
+          Resource: "*"
+      Roles: 
+        - !Ref InstanceRole
+  LaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroups:
+      - !Ref InstanceSecurityGroup
+      IamInstanceProfile: !Ref InstanceProfile
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "<powershell>\r\n"
+            - "New-Item -Path c:\\temp -ItemType \"directory\" -Force\r\n"
+            - "powershell.exe -Command Read-S3Object -BucketName bucket-name/latest -Key codedeploy-agent.msi -File c:\\temp\\codedeploy-agent.msi\r\n"
+            - "Start-Process -Wait -FilePath c:\\temp\\codedeploy-agent.msi -WindowStyle Hidden\r\n"
+            - "</powershell>"
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT10M
+        Count: '1'
