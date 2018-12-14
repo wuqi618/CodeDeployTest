@@ -99,10 +99,19 @@ Resources:
           - ''
           - - "<powershell>\r\n"
             - "New-Item -Path c:\\temp -ItemType \"directory\" -Force\r\n"
-            - "powershell.exe -Command Read-S3Object -BucketName bucket-name/latest -Key codedeploy-agent.msi -File c:\\temp\\codedeploy-agent.msi\r\n"
+            - "Import-Module ServerManager\r\n"
+            - "Install-WindowsFeature Web-Server -IncludeManagementTools\r\n"
+            - "Remove-WebSite -Name \"Default Web Site\"\r\n"
+            - "Remove-WebAppPool -Name DefaultAppPool\r\n"
+            - "Invoke-WebRequest -Uri \"https://download.visualstudio.microsoft.com/download/pr/48adfc75-bce7-4621-ae7a-5f3c4cf4fc1f/9a8e07173697581a6ada4bf04c845a05/dotnet-hosting-2.2.0-win.exe\" -OutFile c:\\temp\\dotnet-hosting-2.2.0-win.exe\r\n"
+            - "Start-Process -Wait -FilePath c:\\temp\\dotnet-hosting-2.2.0-win.exe -ArgumentList \"/quiet /install\"\r\n"
+            - "Read-S3Object -BucketName aws-codedeploy-ap-southeast-2/latest -Key codedeploy-agent.msi -File c:\\temp\\codedeploy-agent.msi\r\n"
             - "Start-Process -Wait -FilePath c:\\temp\\codedeploy-agent.msi -WindowStyle Hidden\r\n"
             - "</powershell>"
     CreationPolicy:
       ResourceSignal:
         Timeout: PT10M
         Count: '1'
+Outputs:
+  AutoScalingGroupId:
+    Value: !Ref WebServerGroup

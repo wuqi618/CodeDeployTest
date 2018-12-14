@@ -119,6 +119,18 @@ Resources:
       PortRange:
         From: '80'
         To: '80'
+  OutboundAclEntryHTTPS:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      NetworkAclId: !Ref NetworkAcl
+      RuleNumber: '200'
+      Protocol: '6'
+      RuleAction: allow
+      Egress: 'true'
+      CidrBlock: 0.0.0.0/0
+      PortRange:
+        From: '443'
+        To: '443'
   OutBoundAclEntryDynamic:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
@@ -146,7 +158,7 @@ Resources:
         - Effect: Allow
           Principal:
             Service:
-            - ec2.amazonaws.com
+            - codedeploy.amazonaws.com
           Action:
           - sts:AssumeRole
       Path: "/"
@@ -155,3 +167,5 @@ Resources:
 Outputs:
   VPC:
     Value: !Ref VPC
+  CodeDeployServiceRoleArn:
+    Value: !GetAtt CodeDeployServiceRole.Arn

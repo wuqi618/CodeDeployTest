@@ -1,0 +1,9 @@
+version: 0.0
+os: windows
+files:
+  - source: \publish
+    destination: C:\inetpub\SimpleWebApi
+hooks:
+  AfterInstall:
+    - location: \deploy.ps1
+      timeout: 900

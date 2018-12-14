@@ -1,0 +1,27 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  AutoScalingGroupId:
+    Type: String
+  ServiceRoleArn:
+    Type: String
+Resources:
+  Application:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: "SimpleWebApi"
+      ComputePlatform: "Server"
+  StagingDeploymentGroup:
+    DependsOn:
+    - Application
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref Application
+      AutoScalingGroups:
+        - !Ref AutoScalingGroupId
+      DeploymentConfigName: "CodeDeployDefault.OneAtATime"
+      DeploymentGroupName: "Staging"
+      DeploymentStyle: 
+        DeploymentType: IN_PLACE
+        DeploymentOption: WITHOUT_TRAFFIC_CONTROL
+      ServiceRoleArn: !Ref ServiceRoleArn
